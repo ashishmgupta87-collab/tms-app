@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMS Pro — Transport Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="sidebar" id="sidebar">
+      <div class="sb-logo">
+        <div class="sb-logo-title">TMS Pro</div>
+        <div class="sb-logo-sub">Fleet Manager</div>
+      </div>
+      <div class="sb-sec">Overview</div>
+      <div class="sb-item active" onclick="nav('dashboard')">Dashboard</div>
+      <div class="sb-sec">Fleet</div>
+      <div class="sb-item" onclick="nav('fleet')">Fleet &amp; Trucks</div>
+      <div class="sb-item" onclick="nav('drivers')">Drivers</div>
+      <div class="sb-sec">Operations</div>
+      <div class="sb-item" onclick="nav('trips')">Trips &amp; Routes</div>
+      <div class="sb-item" onclick="nav('maintenance')">Maintenance</div>
+      <div class="sb-sec">Finance</div>
+      <div class="sb-item" onclick="nav('billing')">Billing &amp; Accounts</div>
+      <div class="sb-item" onclick="nav('salary')">Driver Salary</div>
+      <div class="sb-item" onclick="nav('pl')">P&amp;L Report</div>
+      <div class="sb-sec">Tools</div>
+      <div class="sb-item" onclick="nav('import')">Import from Excel</div>
+      <div class="sb-sec">Settings</div>
+      <div class="sb-item" onclick="nav('company')">Company Details</div>
+      <div class="sb-sync" id="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-text">Connecting...</span>
+      </div>
+    </div>
+
+    <div class="main" id="main-content">
+      <div class="pg active" id="pg-dashboard"></div>
+      <div class="pg" id="pg-fleet"></div>
+      <div class="pg" id="pg-drivers"></div>
+      <div class="pg" id="pg-trips"></div>
+      <div class="pg" id="pg-maintenance"></div>
+      <div class="pg" id="pg-billing"></div>
+      <div class="pg" id="pg-salary"></div>
+      <div class="pg" id="pg-pl"></div>
+      <div class="pg" id="pg-import"></div>
+      <div class="pg" id="pg-company"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">Add</div>
+        <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+      </div>
+      <div id="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-save-btn" onclick="saveModal()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="db.js"></script>
+  <script src="utils.js"></script>
+  <script src="pages/dashboard.js"></script>
+  <script src="pages/fleet.js"></script>
+  <script src="pages/drivers.js"></script>
+  <script src="pages/trips.js"></script>
+  <script src="pages/maintenance.js"></script>
+  <script src="pages/billing.js"></script>
+  <script src="pages/salary.js"></script>
+  <script src="pages/pl.js"></script>
+  <script src="pages/import.js"></script>
+  <script src="pages/company.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
