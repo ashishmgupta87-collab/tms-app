@@ -1,2 +1,2 @@
-const SUPABASE_URL = 'https://hutgidbijwucegmwnuxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1dGdpZGJpand1Y2VnbXdudXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTg2NDQsImV4cCI6MjA5MTQ3NDY0NH0.JcDmOJUGgI7CXadUbpcaqGRx22At4SSKVRdrfIiS4ys';
+const SUPABASE_URL = '%%SUPABASE_URL%%';
+const SUPABASE_ANON_KEY = '%%SUPABASE_ANON_KEY%%';
