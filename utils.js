@@ -68,3 +68,92 @@ function exportExcel(data, filename) {
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
   XLSX.writeFile(wb, filename + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
 }
+
+// ─── DATE FILTER UTILITY ─────────────────────────────────
+const DateFilter = {
+  // Returns {from, to} date strings based on preset or custom input
+  get(filterId) {
+    const preset = document.getElementById(filterId + '-preset')?.value;
+    const from = document.getElementById(filterId + '-from')?.value;
+    const to = document.getElementById(filterId + '-to')?.value;
+    if (preset && preset !== 'custom') return this.preset(preset);
+    return { from: from || null, to: to || null };
+  },
+
+  preset(p) {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    switch (p) {
+      case 'today':
+        const t = now.toISOString().slice(0, 10);
+        return { from: t, to: t };
+      case 'this_week': {
+        const day = now.getDay();
+        const mon = new Date(now); mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+        return { from: mon.toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) };
+      }
+      case 'this_month':
+        return { from: new Date(y, m, 1).toISOString().slice(0, 10), to: new Date(y, m + 1, 0).toISOString().slice(0, 10) };
+      case 'last_month':
+        return { from: new Date(y, m - 1, 1).toISOString().slice(0, 10), to: new Date(y, m, 0).toISOString().slice(0, 10) };
+      case 'this_quarter': {
+        const q = Math.floor(m / 3);
+        return { from: new Date(y, q * 3, 1).toISOString().slice(0, 10), to: new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10) };
+      }
+      case 'this_year':
+        return { from: new Date(y, 0, 1).toISOString().slice(0, 10), to: new Date(y, 11, 31).toISOString().slice(0, 10) };
+      case 'last_year':
+        return { from: new Date(y - 1, 0, 1).toISOString().slice(0, 10), to: new Date(y - 1, 11, 31).toISOString().slice(0, 10) };
+      default:
+        return { from: null, to: null };
+    }
+  },
+
+  // Filter an array of records by date field
+  apply(records, dateField, filterId) {
+    const { from, to } = this.get(filterId);
+    if (!from && !to) return records;
+    return records.filter(r => {
+      if (!r[dateField]) return false;
+      const d = r[dateField].slice(0, 10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  },
+
+  // Render the filter bar HTML
+  html(filterId, onchange) {
+    return `<div class="date-filter-bar" id="${filterId}-bar">
+      <select id="${filterId}-preset" class="df-select" onchange="handlePresetChange('${filterId}');${onchange}">
+        <option value="">All time</option>
+        <option value="today">Today</option>
+        <option value="this_week">This week</option>
+        <option value="this_month">This month</option>
+        <option value="last_month">Last month</option>
+        <option value="this_quarter">This quarter</option>
+        <option value="this_year">This year</option>
+        <option value="last_year">Last year</option>
+        <option value="custom">Custom range...</option>
+      </select>
+      <div id="${filterId}-custom" class="df-custom" style="display:none">
+        <input type="date" id="${filterId}-from" class="df-date" onchange="${onchange}" placeholder="From">
+        <span class="df-sep">→</span>
+        <input type="date" id="${filterId}-to" class="df-date" onchange="${onchange}" placeholder="To">
+      </div>
+      <span id="${filterId}-summary" class="df-summary"></span>
+    </div>`;
+  },
+
+  // Update summary label
+  updateSummary(filterId, count, label) {
+    const el = document.getElementById(filterId + '-summary');
+    if (el) el.textContent = count !== null ? `${count} ${label}` : '';
+  }
+};
+
+function handlePresetChange(filterId) {
+  const preset = document.getElementById(filterId + '-preset')?.value;
+  const custom = document.getElementById(filterId + '-custom');
+  if (custom) custom.style.display = preset === 'custom' ? 'flex' : 'none';
+}

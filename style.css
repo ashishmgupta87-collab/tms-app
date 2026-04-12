@@ -201,17 +201,47 @@ tr:last-child td { border-bottom: none; }
   margin-left: -6px;
 }
 
-/* Role badges */
-.role-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 4px; font-weight: 500; }
-.rb-owner { background: #EEEDFE; color: #3C3489; }
-.rb-accountant { background: #E6F1FB; color: #0C447C; }
-.rb-driver { background: #F1EFE8; color: #444441; }
-
-/* Role info cards on team page */
-.role-info-card { background: var(--bg-primary); border: 0.5px solid var(--border-color); border-radius: 12px; padding: 14px; }
-.ric-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-.ric-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
-
-/* Role permission table */
-.perm-yes { color: #27500A; font-weight: 500; }
-.perm-no { color: #9b9b96; }
+/* ─── DATE FILTER BAR ─────────────────────────────── */
+.date-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.df-select {
+  padding: 6px 10px;
+  border: 0.5px solid var(--border-hover);
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 150px;
+}
+.df-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.df-date {
+  padding: 6px 10px;
+  border: 0.5px solid var(--border-hover);
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  width: 130px;
+}
+.df-sep {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.df-summary {
+  font-size: 12px;
+  margin-left: auto;
+}
