@@ -51,11 +51,13 @@
       <div class="sb-item" onclick="nav('import')">Import from Excel</div>
       <div class="sb-sec">Settings</div>
       <div class="sb-item" onclick="nav('company')">Company Details</div>
+      <div class="sb-item" onclick="nav('team')">Team &amp; Roles</div>
       <div class="sb-user">
         <div class="sb-user-info">
           <div class="sb-user-dot"></div>
           <div class="sb-user-email" id="user-email">Loading...</div>
         </div>
+        <span class="role-badge" id="role-badge">Owner</span>
         <button class="sb-signout" onclick="Auth.signOut()">Sign out</button>
       </div>
       <div class="sb-sync" id="sync-status">
@@ -75,6 +77,7 @@
       <div class="pg" id="pg-pl"></div>
       <div class="pg" id="pg-import"></div>
       <div class="pg" id="pg-company"></div>
+      <div class="pg" id="pg-team"></div>
     </div>
   </div>
 
@@ -109,6 +112,7 @@
   <script src="pages/pl.js"></script>
   <script src="pages/import.js"></script>
   <script src="pages/company.js"></script>
+  <script src="pages/team.js"></script>
   <script src="search.js"></script>
   <script src="app.js"></script>
 </body>
