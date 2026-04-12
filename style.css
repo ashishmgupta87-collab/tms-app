@@ -174,3 +174,29 @@ tr:last-child td { border-bottom: none; }
 .sb-user-email { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-signout { width: 100%; padding: 6px; border: 0.5px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; text-align: center; }
 .sb-signout:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* Clickable dashboard metrics */
+.metric-link {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.metric-link:hover {
+  background: var(--blue-light);
+  transform: translateY(-2px);
+}
+.metric-link:hover .metric-lbl,
+.metric-link:hover .metric-sub {
+  color: #0C447C;
+}
+.metric-link:active { transform: scale(0.98); }
+
+/* Clickable trip rows */
+.dash-trip-row:hover td { background: var(--bg-secondary); }
+
+/* Clickable alert items */
+.alert-item-link:hover {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  padding-left: 6px;
+  margin-left: -6px;
+}
