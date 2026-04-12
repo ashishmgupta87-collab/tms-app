@@ -8,29 +8,16 @@ const pageRenderers = {
   salary: renderSalary,
   pl: renderPL,
   import: renderImport,
-  company: renderCompany,
-  team: renderTeam
+  company: renderCompany
 };
 
 const pageLabels = {
   dashboard: 'Dashboard', fleet: 'Fleet & Trucks', drivers: 'Drivers',
   trips: 'Trips & Routes', maintenance: 'Maintenance', billing: 'Billing & Accounts',
-  salary: 'Driver Salary', pl: 'P&L Report', import: 'Import from Excel',
-  company: 'Company Details', team: 'Team & Roles'
+  salary: 'Driver Salary', pl: 'P&L Report', import: 'Import from Excel', company: 'Company Details'
 };
 
 function nav(page) {
-  // Block access based on role
-  const role = window._userRole || 'driver';
-  const ownerOnly = ['pl', 'import', 'company', 'team'];
-  const accountantBlocked = ['import', 'company', 'team'];
-  if (role === 'driver' && !['dashboard', 'trips', 'salary'].includes(page)) {
-    showToast('Access restricted for your role', 'error'); return;
-  }
-  if (role === 'accountant' && accountantBlocked.includes(page)) {
-    showToast('Access restricted for your role', 'error'); return;
-  }
-
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
   const pg = document.getElementById('pg-' + page);
@@ -52,14 +39,9 @@ async function updateSyncStatus() {
 async function init() {
   const user = await Auth.requireAuth();
   if (!user) return;
-
-  // Apply role-based UI
-  await Roles.applyUI();
-
-  // Show user info
   const emailEl = document.getElementById('user-email');
   if (emailEl) emailEl.textContent = user.email;
-
+  GlobalSearch.init();
   await updateSyncStatus();
   setInterval(updateSyncStatus, 30000);
   renderDashboard();
