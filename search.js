@@ -1,51 +1,19 @@
-// ─── GLOBAL SEARCH ───────────────────────────────────────
 const GlobalSearch = {
   _open: false,
   _results: [],
+  _filter: 'all',
+  _focused: -1,
 
   init() {
-    // Inject search UI into the app
-    const searchHTML = `
-      <div id="gs-trigger" onclick="GlobalSearch.open()" title="Search (Ctrl+K)">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
-        <span>Search...</span>
-        <kbd>Ctrl K</kbd>
-      </div>
-      <div id="gs-overlay" onclick="GlobalSearch.close()"></div>
-      <div id="gs-panel">
-        <div id="gs-input-row">
-          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0;opacity:0.4"><circle cx="6" cy="6" r="4"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
-          <input id="gs-input" placeholder="Search trucks, drivers, trips, invoices..." oninput="GlobalSearch.search(this.value)" autocomplete="off">
-          <kbd onclick="GlobalSearch.close()">Esc</kbd>
-        </div>
-        <div id="gs-filters">
-          <button class="gs-filter active" onclick="GlobalSearch.setFilter('all',this)">All</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('fleet',this)">Trucks</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('drivers',this)">Drivers</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('trips',this)">Trips</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('billing',this)">Invoices</button>
-        </div>
-        <div id="gs-results"></div>
-        <div id="gs-footer">Type to search across all modules</div>
-      </div>`;
-
-    const container = document.createElement('div');
-    container.id = 'gs-container';
-    container.innerHTML = searchHTML;
-    document.body.appendChild(container);
-
-    // Keyboard shortcut Ctrl+K
+    // Wire up keyboard shortcuts only — HTML is already in index.html
     document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); this.open(); }
       if (e.key === 'Escape' && this._open) this.close();
-      if (e.key === 'ArrowDown' && this._open) this.navigate(1);
-      if (e.key === 'ArrowUp' && this._open) this.navigate(-1);
+      if (e.key === 'ArrowDown' && this._open) { e.preventDefault(); this.navigate(1); }
+      if (e.key === 'ArrowUp' && this._open) { e.preventDefault(); this.navigate(-1); }
       if (e.key === 'Enter' && this._open) this.selectFocused();
     });
   },
-
-  _filter: 'all',
-  _focused: -1,
 
   setFilter(f, el) {
     this._filter = f;
@@ -71,7 +39,9 @@ const GlobalSearch = {
     this._focused = -1;
     document.getElementById('gs-overlay').classList.remove('open');
     document.getElementById('gs-panel').classList.remove('open');
-    if (document.getElementById('gs-input')) document.getElementById('gs-input').value = '';
+    const inp = document.getElementById('gs-input');
+    if (inp) inp.value = '';
+    document.getElementById('gs-results').innerHTML = '';
   },
 
   renderEmpty() {
@@ -98,7 +68,7 @@ const GlobalSearch = {
         type: 'fleet', icon: 'Tr',
         title: t.truck_no,
         sub: `${t.make} ${t.model||''} · ${t.wheel_type||''} · ${t.status||'Active'}`,
-        tag: t.status === 'Active' ? 'Active' : t.status || 'Active',
+        tag: t.status || 'Active',
         tagClass: t.status === 'Active' ? 'gs-tag-green' : 'gs-tag-gray',
         action: () => { nav('fleet'); this.close(); }
       }));
@@ -158,54 +128,47 @@ const GlobalSearch = {
   render(query, results) {
     const el = document.getElementById('gs-results');
     const footer = document.getElementById('gs-footer');
-
     if (!results.length) {
       el.innerHTML = `<div class="gs-empty">No results for "<strong>${query}</strong>"</div>`;
       footer.textContent = '0 results';
       return;
     }
-
     const typeLabels = { fleet: 'Trucks', drivers: 'Drivers', trips: 'Trips', billing: 'Invoices' };
-    let html = '';
-    let lastType = null;
-
+    let html = '', lastType = null;
     results.slice(0, 12).forEach((r, i) => {
-      if (r.type !== lastType) {
-        html += `<div class="gs-group-label">${typeLabels[r.type]}</div>`;
-        lastType = r.type;
-      }
+      if (r.type !== lastType) { html += `<div class="gs-group-label">${typeLabels[r.type]}</div>`; lastType = r.type; }
       const focused = i === this._focused ? 'focused' : '';
-      const hl = s => s.replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<mark>${m}</mark>`);
-      html += `<div class="gs-item ${focused}" onclick="GlobalSearch.select(${i})" onmouseover="GlobalSearch.focus(${i})">
+      const esc = s => String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const hl = s => esc(s).replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<mark>${m}</mark>`);
+      html += `<div class="gs-item ${focused}" onclick="GlobalSearch.select(${i})" onmouseover="GlobalSearch._hover(${i})">
         <div class="gs-item-icon gs-icon-${r.type}">${r.icon}</div>
         <div class="gs-item-body">
           <div class="gs-item-title">${hl(r.title)}</div>
-          <div class="gs-item-sub">${r.sub}</div>
+          <div class="gs-item-sub">${esc(r.sub)}</div>
         </div>
         <span class="gs-tag ${r.tagClass}">${r.tag}</span>
       </div>`;
     });
-
     el.innerHTML = html;
     footer.textContent = `${results.length} result${results.length !== 1 ? 's' : ''} — press Enter to open`;
+    this._updateFocus();
   },
 
-  focus(i) {
-    this._focused = i;
-    document.querySelectorAll('.gs-item').forEach((el, idx) => el.classList.toggle('focused', idx === i));
+  _hover(i) { this._focused = i; this._updateFocus(); },
+
+  _updateFocus() {
+    document.querySelectorAll('.gs-item').forEach((el, idx) => el.classList.toggle('focused', idx === this._focused));
   },
 
   navigate(dir) {
     const max = Math.min(this._results.length, 12) - 1;
     this._focused = Math.max(0, Math.min(max, this._focused + dir));
-    this.focus(this._focused);
+    this._updateFocus();
+    // Scroll focused item into view
+    const items = document.querySelectorAll('.gs-item');
+    if (items[this._focused]) items[this._focused].scrollIntoView({ block: 'nearest' });
   },
 
-  select(i) {
-    if (this._results[i]) this._results[i].action();
-  },
-
-  selectFocused() {
-    if (this._focused >= 0) this.select(this._focused);
-  }
+  select(i) { if (this._results[i]) this._results[i].action(); },
+  selectFocused() { if (this._focused >= 0) this.select(this._focused); }
 };
