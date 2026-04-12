@@ -37,6 +37,10 @@ async function updateSyncStatus() {
 }
 
 async function init() {
+  const user = await Auth.requireAuth();
+  if (!user) return;
+  const emailEl = document.getElementById('user-email');
+  if (emailEl) emailEl.textContent = user.email;
   await updateSyncStatus();
   setInterval(updateSyncStatus, 30000);
   renderDashboard();

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMS Pro — Login</title>
+  <style>
+    :root {
+      --blue: #185FA5;
+      --blue-dark: #0C447C;
+      --blue-light: #E6F1FB;
+      --bg: #f0efea;
+      --card: #ffffff;
+      --text: #1a1a18;
+      --text-sec: #6b6b67;
+      --border: rgba(0,0,0,0.15);
+      --red: #A32D2D;
+      --red-bg: #FCEBEB;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #141412; --card: #1e1e1c; --text: #e8e8e2; --text-sec: #9b9b96; --border: rgba(255,255,255,0.12); --blue-light: #0c2d4a; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: var(--card); border: 0.5px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo-title { font-size: 22px; font-weight: 600; color: var(--blue); }
+    .logo-sub { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border: 0.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .tab { flex: 1; padding: 8px; text-align: center; font-size: 13px; cursor: pointer; color: var(--text-sec); background: transparent; border: none; }
+    .tab.active { background: var(--blue); color: #fff; font-weight: 500; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-sec); margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 0.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card); color: var(--text); outline: none; }
+    .form-group input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-light); }
+    .btn { width: 100%; padding: 11px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 6px; }
+    .btn:hover { background: var(--blue-dark); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error { background: var(--red-bg); color: var(--red); font-size: 12px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; display: none; }
+    .error.show { display: block; }
+    .success { background: #EAF3DE; color: #27500A; font-size: 12px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; display: none; }
+    .success.show { display: block; }
+    .forgot { text-align: right; margin-top: -8px; margin-bottom: 14px; }
+    .forgot a { font-size: 12px; color: var(--blue); text-decoration: none; cursor: pointer; }
+    #reset-section { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-title">TMS Pro</div>
+      <div class="logo-sub">Transport Management System</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Sign in</button>
+      <button class="tab" onclick="switchTab('signup')">Create account</button>
+    </div>
+
+    <div id="error-msg" class="error"></div>
+    <div id="success-msg" class="success"></div>
+
+    <div id="login-section">
+      <div class="form-group">
+        <label>Email address</label>
+        <input type="email" id="login-email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="forgot"><a onclick="switchTab('reset')">Forgot password?</a></div>
+      <button class="btn" id="login-btn" onclick="doLogin()">Sign in</button>
+    </div>
+
+    <div id="signup-section" style="display:none">
+      <div class="form-group">
+        <label>Full name</label>
+        <input type="text" id="signup-name" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label>Email address</label>
+        <input type="email" id="signup-email" placeholder="you@company.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min 6 characters">
+      </div>
+      <button class="btn" id="signup-btn" onclick="doSignup()">Create account</button>
+    </div>
+
+    <div id="reset-section">
+      <div class="form-group">
+        <label>Enter your email to reset password</label>
+        <input type="email" id="reset-email" placeholder="you@company.com">
+      </div>
+      <button class="btn" onclick="doReset()">Send reset link</button>
+      <div style="text-align:center;margin-top:12px"><a onclick="switchTab('login')" style="font-size:12px;color:var(--blue);cursor:pointer">Back to sign in</a></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg; el.classList.add('show');
+      document.getElementById('success-msg').classList.remove('show');
+    }
+    function showSuccess(msg) {
+      const el = document.getElementById('success-msg');
+      el.textContent = msg; el.classList.add('show');
+      document.getElementById('error-msg').classList.remove('show');
+    }
+    function clearMessages() {
+      document.getElementById('error-msg').classList.remove('show');
+      document.getElementById('success-msg').classList.remove('show');
+    }
+
+    function switchTab(tab) {
+      clearMessages();
+      document.getElementById('login-section').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('signup-section').style.display = tab === 'signup' ? 'block' : 'none';
+      document.getElementById('reset-section').style.display = tab === 'reset' ? 'block' : 'none';
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'signup' && i === 1)));
+    }
+
+    async function doLogin() {
+      clearMessages();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { showError('Please enter email and password.'); return; }
+      const btn = document.getElementById('login-btn');
+      btn.textContent = 'Signing in...'; btn.disabled = true;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) { showError(error.message); btn.textContent = 'Sign in'; btn.disabled = false; }
+      else { window.location.href = 'index.html'; }
+    }
+
+    async function doSignup() {
+      clearMessages();
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      if (!email || !password) { showError('Email and password are required.'); return; }
+      if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+      const btn = document.getElementById('signup-btn');
+      btn.textContent = 'Creating...'; btn.disabled = true;
+      const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      if (error) { showError(error.message); btn.textContent = 'Create account'; btn.disabled = false; }
+      else { showSuccess('Account created! You can now sign in.'); switchTab('login'); }
+    }
+
+    async function doReset() {
+      clearMessages();
+      const email = document.getElementById('reset-email').value.trim();
+      if (!email) { showError('Please enter your email.'); return; }
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/index.html' });
+      if (error) showError(error.message);
+      else showSuccess('Password reset link sent! Check your email.');
+    }
+
+    // If already logged in, redirect to app
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

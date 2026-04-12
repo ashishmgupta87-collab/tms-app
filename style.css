@@ -166,3 +166,11 @@ tr:last-child td { border-bottom: none; }
   .form-grid { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: 1fr 1fr; }
 }
+
+/* User section in sidebar */
+.sb-user { padding: 10px 14px; border-top: 0.5px solid var(--border-color); margin-top: auto; }
+.sb-user-info { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.sb-user-dot { width: 7px; height: 7px; border-radius: 50%; background: #639922; flex-shrink: 0; }
+.sb-user-email { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-signout { width: 100%; padding: 6px; border: 0.5px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; text-align: center; }
+.sb-signout:hover { background: var(--bg-secondary); color: var(--text-primary); }

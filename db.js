@@ -1,6 +1,32 @@
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ─── AUTH ────────────────────────────────────────────────────
+const Auth = {
+  async getUser() {
+    const { data: { user } } = await db.auth.getUser();
+    return user;
+  },
+  async getSession() {
+    const { data: { session } } = await db.auth.getSession();
+    return session;
+  },
+  async signOut() {
+    await db.auth.signOut();
+    localStorage.clear();
+    window.location.href = 'login.html';
+  },
+  async requireAuth() {
+    const session = await this.getSession();
+    if (!session) { window.location.href = 'login.html'; return null; }
+    return session.user;
+  }
+};
+
+db.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') window.location.href = 'login.html';
+});
+
 // Local cache for offline support
 const cache = {
   get(k) { try { return JSON.parse(localStorage.getItem('tms_' + k) || '[]'); } catch { return []; } },
