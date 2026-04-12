@@ -1,8 +1,37 @@
 // ─── SALARY ───────────────────────────────────────────────
 async function renderSalary() {
   const el = document.getElementById('pg-salary');
-  el.innerHTML = `<div class="pg-header"><div class="pg-title">Driver Salary</div><div class="topbar-row"><button class="btn btn-amber" onclick="exportSalary()">Export Excel</button><button class="btn btn-primary" onclick="openModal('salary')">+ Log salary</button></div></div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Driver</th><th>Truck</th><th>Trip / Month</th><th>Days</th><th>Rate/day</th><th>DA</th><th>Advance</th><th>Net payable</th><th>Status</th><th>Actions</th></tr></thead><tbody id="salary-body"><tr><td colspan="10" class="empty-state">Loading...</td></tr></tbody></table></div></div>`;
-  const data = await DB.getAll('salary');
+  el.innerHTML = `
+    <div class="pg-header">
+      <div class="pg-title">Driver Salary</div>
+      <div class="topbar-row">
+        <button class="btn btn-amber" onclick="exportSalary()">Export Excel</button>
+        <button class="btn btn-primary" onclick="openModal('salary')">+ Log salary</button>
+      </div>
+    </div>
+    ${DateFilter.html('salary-df', 'renderSalaryTable()')}
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Driver</th><th>Truck</th><th>Trip / Month</th><th>Days</th><th>Rate/day</th><th>DA</th><th>Advance</th><th>Net payable</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="salary-body"><tr><td colspan="10" class="empty-state">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  await renderSalaryTable();
+}
+
+async function renderSalaryTable() {
+  const allData = await DB.getAll('salary');
+  // Salary uses trip_date as text, so filter by created_at for date range
+  const data = DateFilter.apply(allData, 'created_at', 'salary-df');
+
+  const totalNet = data.reduce((s, r) => s + Math.max(0, (Number(r.days||0)*Number(r.rate||0)) + Number(r.da||0) - Number(r.advance||0)), 0);
+  const unpaid = data.filter(r => r.status !== 'Paid').reduce((s, r) => s + Math.max(0, (Number(r.days||0)*Number(r.rate||0)) + Number(r.da||0) - Number(r.advance||0)), 0);
+
+  const summaryEl = document.getElementById('salary-df-summary');
+  if (summaryEl) summaryEl.innerHTML = `<span style="color:var(--text-secondary)">${data.length} records &nbsp;·&nbsp; Total payable: <strong>${rupee(totalNet)}</strong> &nbsp;·&nbsp; Unpaid: <strong style="color:#A32D2D">${rupee(unpaid)}</strong></span>`;
+
   document.getElementById('salary-body').innerHTML = data.length
     ? data.map(s => {
         const net = Math.max(0, (Number(s.days||0)*Number(s.rate||0)) + Number(s.da||0) - Number(s.advance||0));
@@ -16,7 +45,7 @@ async function renderSalary() {
             <button class="btn btn-sm btn-danger" onclick="delRecord('salary','${s.id}',renderSalary)">Del</button>
           </td></tr>`;
       }).join('')
-    : emptyState('No salary records yet.');
+    : emptyState('No salary records found for selected period.');
 }
 
 async function salaryForm(d = {}) {
@@ -40,36 +69,60 @@ async function saveSalary(id) {
 }
 
 async function exportSalary() {
-  const data = await DB.getAll('salary');
+  const allData = await DB.getAll('salary');
+  const data = DateFilter.apply(allData, 'created_at', 'salary-df');
   exportExcel(data.map(s => ({ 'Driver': s.driver_name, 'Truck': s.truck_no, 'Period': s.trip_date, 'Days': s.days, 'Rate': s.rate, 'DA': s.da, 'Advance': s.advance, 'Net': Math.max(0,(s.days*s.rate)+Number(s.da)-Number(s.advance)), 'Status': s.status })), 'TMS_Salary');
 }
 
 // ─── P&L REPORT ───────────────────────────────────────────
 async function renderPL() {
   const el = document.getElementById('pg-pl');
-  el.innerHTML = `<div class="pg-header"><div class="pg-title">P&amp;L Report</div><div class="topbar-row"><select id="pl-month" onchange="refreshPL()" style="padding:7px 10px;border:0.5px solid var(--border-color);border-radius:8px;font-size:12px;background:var(--bg-primary);color:var(--text-primary)"></select><button class="btn btn-success" onclick="exportPLPDF()">Export PDF</button><button class="btn btn-amber" onclick="exportPLExcel()">Export Excel</button></div></div><div class="metrics" id="pl-metrics"></div><div class="grid2"><div class="card"><div class="card-title">Revenue by truck</div><div id="pl-rev-bars"></div></div><div class="card"><div class="card-title">Expense breakdown</div><div id="pl-exp-bars"></div></div></div><div class="card"><div class="card-title">Per-truck P&amp;L</div><div class="tbl-wrap"><table><thead><tr><th>Truck</th><th>Trips</th><th>Revenue</th><th>Diesel</th><th>Toll</th><th>DA</th><th>Maint.</th><th>Total exp.</th><th>Net profit</th><th>Margin</th></tr></thead><tbody id="pl-truck-body"></tbody></table></div></div>`;
-  await initPLMonths();
+  el.innerHTML = `
+    <div class="pg-header">
+      <div class="pg-title">P&amp;L Report</div>
+      <div class="topbar-row">
+        <button class="btn btn-success" onclick="exportPLPDF()">Export PDF</button>
+        <button class="btn btn-amber" onclick="exportPLExcel()">Export Excel</button>
+      </div>
+    </div>
+    ${DateFilter.html('pl-df', 'refreshPL()')}
+    <div class="metrics" id="pl-metrics"></div>
+    <div class="grid2">
+      <div class="card"><div class="card-title">Revenue by truck</div><div id="pl-rev-bars"></div></div>
+      <div class="card"><div class="card-title">Expense breakdown</div><div id="pl-exp-bars"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Per-truck P&amp;L</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Truck</th><th>Trips</th><th>Revenue</th><th>Diesel</th><th>Toll</th><th>DA</th><th>Maint.</th><th>Total exp.</th><th>Net profit</th><th>Margin</th></tr></thead>
+          <tbody id="pl-truck-body"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // Default to this month
+  const presetEl = document.getElementById('pl-df-preset');
+  if (presetEl && !presetEl.value) presetEl.value = 'this_month';
   await refreshPL();
 }
 
-async function initPLMonths() {
-  const [trips, invoices] = await Promise.all([DB.getAll('trips'), DB.getAll('billing')]);
-  const months = new Set();
-  [...trips, ...invoices].forEach(r => { if (r.date) { const d = new Date(r.date); if (!isNaN(d)) months.add(d.getFullYear() + '-' + (d.getMonth()+1).toString().padStart(2,'0')); }});
-  const now = new Date();
-  months.add(now.getFullYear() + '-' + (now.getMonth()+1).toString().padStart(2,'0'));
-  const sel = document.getElementById('pl-month');
-  if (!sel) return;
-  sel.innerHTML = [...months].sort().reverse().map(m => { const [y,mo] = m.split('-'); return `<option value="${m}">${new Date(y,mo-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</option>`; }).join('');
-}
-
 async function refreshPL() {
-  const sel = document.getElementById('pl-month');
-  if (!sel) return;
-  const [yr, mo] = sel.value.split('-').map(Number);
-  const inMonth = arr => arr.filter(r => { if (!r.date) return false; const d = new Date(r.date); return d.getFullYear()===yr && d.getMonth()+1===mo; });
-  const [allTrips, allInvoices, allMaint, trucks] = await Promise.all([DB.getAll('trips'), DB.getAll('billing'), DB.getAll('maintenance'), DB.getAll('fleet')]);
-  const trips = inMonth(allTrips), invoices = inMonth(allInvoices), maint = inMonth(allMaint);
+  const [allTrips, allInvoices, allMaint, trucks] = await Promise.all([
+    DB.getAll('trips'), DB.getAll('billing'), DB.getAll('maintenance'), DB.getAll('fleet')
+  ]);
+
+  const trips = DateFilter.apply(allTrips, 'date', 'pl-df');
+  const invoices = DateFilter.apply(allInvoices, 'date', 'pl-df');
+  const maint = DateFilter.apply(allMaint, 'date', 'pl-df');
+
+  const { from, to } = DateFilter.get('pl-df');
+  const summaryEl = document.getElementById('pl-df-summary');
+  if (summaryEl) {
+    const label = from && to ? `${fmtDate(from)} — ${fmtDate(to)}` : from ? `From ${fmtDate(from)}` : to ? `Until ${fmtDate(to)}` : 'All time';
+    summaryEl.innerHTML = `<span style="color:var(--text-secondary)">${label}</span>`;
+  }
+
   const totalRev = invoices.reduce((s,i)=>s+Number(i.amount||0),0);
   const totalDiesel = trips.reduce((s,t)=>s+Number(t.diesel||0),0);
   const totalToll = trips.reduce((s,t)=>s+Number(t.toll||0),0);
@@ -92,42 +145,48 @@ async function refreshPL() {
   const maxRev = topRev.length ? topRev[0][1] : 1;
   document.getElementById('pl-rev-bars').innerHTML = topRev.length
     ? topRev.map(([t,amt])=>`<div class="pl-bar-row"><div class="pl-bar-label">${t}</div><div class="pl-bar-track"><div class="pl-bar-fill" style="width:${Math.round(amt/maxRev*100)}%;background:#378ADD"></div></div><div class="pl-bar-val">${rupee(amt)}</div></div>`).join('')
-    : '<div class="empty-state">No revenue data</div>';
+    : '<div class="empty-state">No revenue data for selected period</div>';
 
-  const expItems = [['Diesel',totalDiesel,'#EF9F27'],['Toll',totalToll,'#D85A30'],['Driver DA',totalDA,'#7F77DD'],['Maintenance',totalMaint,'#1D9E75'],['Misc',totalMisc,'#888780']];
+  const expItems=[['Diesel',totalDiesel,'#EF9F27'],['Toll',totalToll,'#D85A30'],['Driver DA',totalDA,'#7F77DD'],['Maintenance',totalMaint,'#1D9E75'],['Misc',totalMisc,'#888780']];
   const maxExp = Math.max(...expItems.map(e=>e[1]),1);
   document.getElementById('pl-exp-bars').innerHTML = expItems.map(([lbl,amt,col])=>`<div class="pl-bar-row"><div class="pl-bar-label">${lbl}</div><div class="pl-bar-track"><div class="pl-bar-fill" style="width:${Math.round(amt/maxExp*100)}%;background:${col}"></div></div><div class="pl-bar-val">${rupee(amt)}</div></div>`).join('');
 
   const truckPL = trucks.map(t => {
-    const tTrips=trips.filter(r=>r.truck_no===t.truck_no);
-    const tRev=invoices.filter(i=>i.truck_no===t.truck_no).reduce((s,i)=>s+Number(i.amount||0),0);
-    const tExp=tTrips.reduce((s,r)=>s+Number(r.diesel||0)+Number(r.toll||0)+Number(r.da||0)+Number(r.misc||0),0)+maint.filter(m=>m.truck_no===t.truck_no).reduce((s,m)=>s+Number(m.cost||0),0);
-    const tP=tRev-tExp; const tm=tRev>0?Math.round(tP/tRev*100):0;
-    return {truck:t.truck_no,trips:tTrips.length,rev:tRev,diesel:tTrips.reduce((s,r)=>s+Number(r.diesel||0),0),toll:tTrips.reduce((s,r)=>s+Number(r.toll||0),0),da:tTrips.reduce((s,r)=>s+Number(r.da||0),0),maint:maint.filter(m=>m.truck_no===t.truck_no).reduce((s,m)=>s+Number(m.cost||0),0),exp:tExp,profit:tP,margin:tm};
+    const tT=trips.filter(r=>r.truck_no===t.truck_no);
+    const tR=invoices.filter(i=>i.truck_no===t.truck_no).reduce((s,i)=>s+Number(i.amount||0),0);
+    const tDiesel=tT.reduce((s,r)=>s+Number(r.diesel||0),0);
+    const tToll=tT.reduce((s,r)=>s+Number(r.toll||0),0);
+    const tDA=tT.reduce((s,r)=>s+Number(r.da||0),0);
+    const tMaint=maint.filter(m=>m.truck_no===t.truck_no).reduce((s,m)=>s+Number(m.cost||0),0);
+    const tE=tDiesel+tToll+tDA+tMaint;
+    const tP=tR-tE; const tm=tR>0?Math.round(tP/tR*100):0;
+    return {truck:t.truck_no,trips:tT.length,rev:tR,diesel:tDiesel,toll:tToll,da:tDA,maint:tMaint,exp:tE,profit:tP,margin:tm};
   }).filter(r=>r.trips>0||r.rev>0).sort((a,b)=>b.profit-a.profit);
 
   document.getElementById('pl-truck-body').innerHTML = truckPL.length
-    ? truckPL.map(r=>`<tr><td><strong>${r.truck}</strong></td><td>${r.trips}</td><td>${rupee(r.rev)}</td><td>${rupee(r.diesel)}</td><td>${rupee(r.toll)}</td><td>${rupee(r.da)}</td><td>${rupee(r.maint)}</td><td>${rupee(r.exp)}</td><td style="color:${r.profit>=0?'#27500A':'#A32D2D'}"><strong>${rupee(r.profit)}</strong></td><td>${badge(r.margin+'%',r.margin>=20?'b-green':r.margin>=0?'b-amber':'b-red')}</td></tr>`).join('')
-    : emptyState('No data for this period. Add trips and invoices first.');
+    ? truckPL.map(r=>`<tr>
+        <td><strong>${r.truck}</strong></td><td>${r.trips}</td><td>${rupee(r.rev)}</td>
+        <td>${rupee(r.diesel)}</td><td>${rupee(r.toll)}</td><td>${rupee(r.da)}</td><td>${rupee(r.maint)}</td>
+        <td>${rupee(r.exp)}</td>
+        <td style="color:${r.profit>=0?'#27500A':'#A32D2D'}"><strong>${rupee(r.profit)}</strong></td>
+        <td>${badge(r.margin+'%', r.margin>=20?'b-green':r.margin>=0?'b-amber':'b-red')}</td>
+      </tr>`).join('')
+    : emptyState('No data for selected period. Add trips and invoices first.');
 }
 
 async function exportPLExcel() {
-  const sel = document.getElementById('pl-month');
-  if (!sel) return;
-  const [yr,mo] = sel.value.split('-').map(Number);
-  const trips = (await DB.getAll('trips')).filter(t=>{if(!t.date)return false;const d=new Date(t.date);return d.getFullYear()===yr&&d.getMonth()+1===mo;});
-  const invoices = (await DB.getAll('billing')).filter(i=>{if(!i.date)return false;const d=new Date(i.date);return d.getFullYear()===yr&&d.getMonth()+1===mo;});
-  exportExcel(invoices.map(i=>({Invoice:i.invoice_no,Truck:i.truck_no,Client:i.client,Amount:i.amount,Date:i.date,Status:i.status})),'TMS_PL_'+sel.value);
+  const [allTrips, allInvoices] = await Promise.all([DB.getAll('trips'), DB.getAll('billing')]);
+  const invoices = DateFilter.apply(allInvoices, 'date', 'pl-df');
+  exportExcel(invoices.map(i=>({Invoice:i.invoice_no,Truck:i.truck_no,Client:i.client,Amount:i.amount,Date:i.date,Status:i.status})),'TMS_PL');
 }
 
 async function exportPLPDF() {
-  const sel = document.getElementById('pl-month');
-  if (!sel) return;
-  const [yr,mo] = sel.value.split('-').map(Number);
-  const monthLabel = new Date(yr,mo-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-  const inMonth = arr => arr.filter(r=>{if(!r.date)return false;const d=new Date(r.date);return d.getFullYear()===yr&&d.getMonth()+1===mo;});
+  const { from, to } = DateFilter.get('pl-df');
+  const label = from && to ? `${fmtDate(from)} — ${fmtDate(to)}` : 'All time';
   const [allTrips,allInvoices,allMaint,trucks,company] = await Promise.all([DB.getAll('trips'),DB.getAll('billing'),DB.getAll('maintenance'),DB.getAll('fleet'),DB.getAll('company')]);
-  const trips=inMonth(allTrips),invoices=inMonth(allInvoices),maint=inMonth(allMaint);
+  const trips=DateFilter.apply(allTrips,'date','pl-df');
+  const invoices=DateFilter.apply(allInvoices,'date','pl-df');
+  const maint=DateFilter.apply(allMaint,'date','pl-df');
   const co = company[0]||{};
   const totalRev=invoices.reduce((s,i)=>s+Number(i.amount||0),0);
   const totalDiesel=trips.reduce((s,t)=>s+Number(t.diesel||0),0);
@@ -138,21 +197,27 @@ async function exportPLPDF() {
   const totalExp=totalDiesel+totalToll+totalDA+totalMisc+totalMaint;
   const profit=totalRev-totalExp;
   const margin=totalRev>0?Math.round(profit/totalRev*100):0;
-  const truckRows=trucks.map(t=>{const tT=trips.filter(r=>r.truck_no===t.truck_no);const tR=invoices.filter(i=>i.truck_no===t.truck_no).reduce((s,i)=>s+Number(i.amount||0),0);const tE=tT.reduce((s,r)=>s+Number(r.diesel||0)+Number(r.toll||0)+Number(r.da||0)+Number(r.misc||0),0)+maint.filter(m=>m.truck_no===t.truck_no).reduce((s,m)=>s+Number(m.cost||0),0);const tP=tR-tE;return tT.length>0||tR>0?`<tr><td>${t.truck_no}</td><td>${tT.length}</td><td>₹${tR.toLocaleString('en-IN')}</td><td>₹${tE.toLocaleString('en-IN')}</td><td style="color:${tP>=0?'green':'red'}">₹${tP.toLocaleString('en-IN')}</td></tr>`:null;}).filter(Boolean).join('');
+  const truckRows=trucks.map(t=>{
+    const tT=trips.filter(r=>r.truck_no===t.truck_no);
+    const tR=invoices.filter(i=>i.truck_no===t.truck_no).reduce((s,i)=>s+Number(i.amount||0),0);
+    const tE=tT.reduce((s,r)=>s+Number(r.diesel||0)+Number(r.toll||0)+Number(r.da||0)+Number(r.misc||0),0)+maint.filter(m=>m.truck_no===t.truck_no).reduce((s,m)=>s+Number(m.cost||0),0);
+    const tP=tR-tE;
+    return tT.length>0||tR>0?`<tr><td>${t.truck_no}</td><td>${tT.length}</td><td>₹${tR.toLocaleString('en-IN')}</td><td>₹${tE.toLocaleString('en-IN')}</td><td style="color:${tP>=0?'green':'red'}">₹${tP.toLocaleString('en-IN')}</td></tr>`:null;
+  }).filter(Boolean).join('');
   const win=window.open('','_blank','width=860,height=1000');
   if(!win){showToast('Allow popups to export PDF','error');return;}
-  win.document.write(`<!DOCTYPE html><html><head><title>P&L ${monthLabel}</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#1a1a1a;max-width:760px;margin:0 auto}h1{font-size:22px;color:#185FA5;margin-bottom:2px}h2{font-size:14px;color:#666;font-weight:400;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}.m{background:#f5f7fa;border-radius:8px;padding:14px}.m-l{font-size:11px;color:#888;margin-bottom:3px}.m-v{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}th{background:#E6F1FB;color:#0C447C;padding:9px 12px;text-align:left;font-size:11px}td{padding:9px 12px;border-bottom:1px solid #eee}.footer{margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#aaa;text-align:center}@media print{button{display:none}}</style></head><body>
-  <h1>${co.name||'TMS Pro'} — P&L Report</h1><h2>${monthLabel}</h2>
+  win.document.write(`<!DOCTYPE html><html><head><title>P&L Report</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#1a1a1a;max-width:760px;margin:0 auto}h1{font-size:22px;color:#185FA5;margin-bottom:2px}h2{font-size:14px;color:#666;font-weight:400;margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}.m{background:#f5f7fa;border-radius:8px;padding:14px}.m-l{font-size:11px;color:#888;margin-bottom:3px}.m-v{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}th{background:#E6F1FB;color:#0C447C;padding:9px 12px;text-align:left;font-size:11px}td{padding:9px 12px;border-bottom:1px solid #eee}.footer{margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#aaa;text-align:center}@media print{button{display:none}}</style></head><body>
+  <h1>${co.name||'TMS Pro'} — P&L Report</h1><h2>${label}</h2>
   <div class="grid"><div class="m"><div class="m-l">Revenue</div><div class="m-v">₹${totalRev.toLocaleString('en-IN')}</div></div><div class="m"><div class="m-l">Expenses</div><div class="m-v">₹${totalExp.toLocaleString('en-IN')}</div></div><div class="m"><div class="m-l">Net Profit</div><div class="m-v" style="color:${profit>=0?'green':'red'}">₹${profit.toLocaleString('en-IN')}</div></div><div class="m"><div class="m-l">Margin</div><div class="m-v">${margin}%</div></div></div>
   <h3 style="font-size:13px;font-weight:600;margin-bottom:8px">Expense summary</h3>
-  <table><thead><tr><th>Category</th><th>Amount (₹)</th></tr></thead><tbody><tr><td>Diesel</td><td>₹${totalDiesel.toLocaleString('en-IN')}</td></tr><tr><td>Toll</td><td>₹${totalToll.toLocaleString('en-IN')}</td></tr><tr><td>Driver DA</td><td>₹${totalDA.toLocaleString('en-IN')}</td></tr><tr><td>Maintenance</td><td>₹${totalMaint.toLocaleString('en-IN')}</td></tr><tr><td>Misc/Loading</td><td>₹${totalMisc.toLocaleString('en-IN')}</td></tr><tr style="font-weight:700;background:#f8f8f8"><td>Total</td><td>₹${totalExp.toLocaleString('en-IN')}</td></tr></tbody></table>
+  <table><thead><tr><th>Category</th><th>Amount (₹)</th></tr></thead><tbody><tr><td>Diesel</td><td>₹${totalDiesel.toLocaleString('en-IN')}</td></tr><tr><td>Toll</td><td>₹${totalToll.toLocaleString('en-IN')}</td></tr><tr><td>Driver DA</td><td>₹${totalDA.toLocaleString('en-IN')}</td></tr><tr><td>Maintenance</td><td>₹${totalMaint.toLocaleString('en-IN')}</td></tr><tr><td>Misc</td><td>₹${totalMisc.toLocaleString('en-IN')}</td></tr><tr style="font-weight:700;background:#f8f8f8"><td>Total</td><td>₹${totalExp.toLocaleString('en-IN')}</td></tr></tbody></table>
   ${truckRows?`<h3 style="font-size:13px;font-weight:600;margin-bottom:8px">Per-truck performance</h3><table><thead><tr><th>Truck</th><th>Trips</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th></tr></thead><tbody>${truckRows}</tbody></table>`:''}
-  <div class="footer">Generated on ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})} — TMS Pro</div>
+  <div class="footer">Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})} — TMS Pro</div>
   <br><button onclick="window.print()" style="padding:10px 24px;background:#185FA5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">Print / Save as PDF</button></body></html>`);
   win.document.close();
 }
 
-// ─── IMPORT ───────────────────────────────────────────────
+// ─── IMPORT, COMPANY (unchanged stubs) ────────────────────
 function renderImport() {
   const el = document.getElementById('pg-import');
   el.innerHTML = `<div class="pg-header"><div class="pg-title">Import from Excel</div></div>
@@ -173,7 +238,7 @@ async function handleImport(event, type) {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
       if (!rows.length) { res.textContent = 'No data found.'; return; }
       const maps = {
-        fleet: r => ({ truck_no: r['Truck No']||r['truck_no']||r['TruckNo'], make: r['Make']||r['make'], model: r['Model']||r['model'], wheel_type: r['Wheel Type']||r['WheelType'], load_cap: r['Load Cap']||r['load_cap']||null, insurance_exp: r['Insurance Exp']||null, fitness_exp: r['Fitness Exp']||null, permit_exp: r['Permit Exp']||null, puc_exp: r['PUC Exp']||null, status: r['Status']||'Active' }),
+        fleet: r => ({ truck_no: r['Truck No']||r['truck_no']||r['TruckNo'], make: r['Make']||r['make'], model: r['Model']||r['model'], wheel_type: r['Wheel Type']||r['WheelType'], load_cap: r['Load Cap']||null, insurance_exp: r['Insurance Exp']||null, fitness_exp: r['Fitness Exp']||null, permit_exp: r['Permit Exp']||null, puc_exp: r['PUC Exp']||null, status: r['Status']||'Active' }),
         drivers: r => ({ name: r['Name']||r['name'], mobile: r['Mobile']||r['Phone']||'', licence_no: r['Licence No']||r['License No']||'', licence_exp: r['Licence Exp']||null, daily_rate: r['Daily Rate']||0, status: r['Status']||'Active' }),
         trips: r => ({ truck_no: r['Truck']||r['Truck No']||r['truck_no'], from_location: r['From']||'', to_location: r['To']||'', date: r['Date']||null, distance: r['Distance']||null, diesel: r['Diesel']||0, toll: r['Toll']||0, da: r['DA']||0, advance: r['Advance']||0, misc: r['Misc']||0, bill_amt: r['Bill Amt']||r['Amount']||0, status: r['Status']||'Completed' }),
         billing: r => ({ invoice_no: r['Invoice No']||r['InvoiceNo']||'INV-'+Date.now(), truck_no: r['Truck']||r['Truck No']||'', client: r['Client']||r['Party']||'', route: r['Route']||'', amount: r['Amount']||0, date: r['Date']||null, status: r['Status']||'Pending' })
@@ -182,7 +247,7 @@ async function handleImport(event, type) {
       let added = 0;
       for (const row of rows) {
         const record = maps[type](row);
-        const key = type === 'fleet' ? 'truck_no' : type === 'drivers' ? 'name' : type === 'billing' ? 'invoice_no' : null;
+        const key = type==='fleet'?'truck_no':type==='drivers'?'name':type==='billing'?'invoice_no':null;
         if (key && !record[key]) continue;
         await DB.insert(dbTable, record); added++;
       }
@@ -206,7 +271,6 @@ function downloadTemplate(type) {
   XLSX.writeFile(wb, 'TMS_' + type + '_template.xlsx');
 }
 
-// ─── COMPANY ──────────────────────────────────────────────
 async function renderCompany() {
   const el = document.getElementById('pg-company');
   const data = (await DB.getAll('company'))[0] || {};

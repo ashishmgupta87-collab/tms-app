@@ -1,17 +1,45 @@
 async function renderBilling() {
   const el = document.getElementById('pg-billing');
-  el.innerHTML = `<div class="pg-header"><div class="pg-title">Billing &amp; Accounts</div><div class="topbar-row"><button class="btn btn-amber" onclick="exportBilling()">Export Excel</button><button class="btn btn-primary" onclick="openModal('billing')">+ New invoice</button></div></div><div class="metrics" id="billing-metrics"></div><div class="card"><div class="card-title">Invoices</div><div class="tbl-wrap"><table><thead><tr><th>Invoice no.</th><th>Truck</th><th>Client</th><th>Route</th><th>Amount (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="billing-body"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody></table></div></div>`;
+  el.innerHTML = `
+    <div class="pg-header">
+      <div class="pg-title">Billing &amp; Accounts</div>
+      <div class="topbar-row">
+        <button class="btn btn-amber" onclick="exportBilling()">Export Excel</button>
+        <button class="btn btn-primary" onclick="openModal('billing')">+ New invoice</button>
+      </div>
+    </div>
+    ${DateFilter.html('billing-df', 'renderBillingTable()')}
+    <div class="metrics" id="billing-metrics"></div>
+    <div class="card">
+      <div class="card-title">Invoices</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Invoice no.</th><th>Truck</th><th>Client</th><th>Route</th><th>Amount (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="billing-body"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  await renderBillingTable();
+}
 
-  const data = await DB.getAll('billing');
+async function renderBillingTable() {
+  const allData = await DB.getAll('billing');
+  const data = DateFilter.apply(allData, 'date', 'billing-df');
+
   const total = data.reduce((s, i) => s + Number(i.amount || 0), 0);
   const paid = data.filter(i => i.status === 'Paid').reduce((s, i) => s + Number(i.amount || 0), 0);
   const pend = data.filter(i => i.status === 'Pending').reduce((s, i) => s + Number(i.amount || 0), 0);
+  const overdue = data.filter(i => i.status === 'Overdue').reduce((s, i) => s + Number(i.amount || 0), 0);
+
+  // Summary in filter bar
+  const summaryEl = document.getElementById('billing-df-summary');
+  if (summaryEl) summaryEl.innerHTML = `<span style="color:var(--text-secondary)">${data.length} invoices &nbsp;·&nbsp; Total: <strong>${rupee(total)}</strong></span>`;
 
   document.getElementById('billing-metrics').innerHTML = `
-    <div class="metric"><div class="metric-lbl">Total billed</div><div class="metric-val">${rupee(total)}</div></div>
-    <div class="metric"><div class="metric-lbl">Received</div><div class="metric-val">${rupee(paid)}</div></div>
-    <div class="metric"><div class="metric-lbl">Pending</div><div class="metric-val">${rupee(pend)}</div></div>
-    <div class="metric"><div class="metric-lbl">Invoices</div><div class="metric-val">${data.length}</div></div>`;
+    <div class="metric"><div class="metric-lbl">Total billed</div><div class="metric-val">${rupee(total)}</div><div class="metric-sub">${data.length} invoices</div></div>
+    <div class="metric"><div class="metric-lbl">Received</div><div class="metric-val" style="color:#27500A">${rupee(paid)}</div><div class="metric-sub">${data.filter(i=>i.status==='Paid').length} paid</div></div>
+    <div class="metric"><div class="metric-lbl">Pending</div><div class="metric-val" style="color:#633806">${rupee(pend)}</div><div class="metric-sub">${data.filter(i=>i.status==='Pending').length} due</div></div>
+    <div class="metric"><div class="metric-lbl">Overdue</div><div class="metric-val" style="color:#A32D2D">${rupee(overdue)}</div><div class="metric-sub">${data.filter(i=>i.status==='Overdue').length} overdue</div></div>`;
 
   document.getElementById('billing-body').innerHTML = data.length
     ? data.map(i => `<tr>
@@ -26,7 +54,7 @@ async function renderBilling() {
           <button class="btn btn-sm btn-danger" onclick="delRecord('billing','${i.id}',renderBilling)">Del</button>
         </td>
       </tr>`).join('')
-    : emptyState('No invoices yet.');
+    : emptyState('No invoices found for selected period.');
 }
 
 async function billingForm(d = {}) {
@@ -88,13 +116,14 @@ async function printInvoice(id) {
     <tr><td>Freight charges — ${inv.route || 'Transport service'}</td><td style="text-align:right">₹${Number(inv.amount||0).toLocaleString('en-IN')}</td></tr>
     <tr class="total-row"><td>Total payable</td><td style="text-align:right">₹${Number(inv.amount||0).toLocaleString('en-IN')}</td></tr>
   </tbody></table>
-  <div class="footer">Thank you for your business. Please make payment within 30 days of invoice date.<br>${company.name || ''} | ${company.phone || ''} | ${company.email || ''}</div>
+  <div class="footer">Thank you for your business. Please make payment within 30 days.<br>${company.name || ''} | ${company.phone || ''} | ${company.email || ''}</div>
   <br><button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
   </body></html>`);
   win.document.close();
 }
 
 async function exportBilling() {
-  const data = await DB.getAll('billing');
+  const allData = await DB.getAll('billing');
+  const data = DateFilter.apply(allData, 'date', 'billing-df');
   exportExcel(data.map(i => ({ 'Invoice No': i.invoice_no, 'Truck': i.truck_no, 'Client': i.client, 'Route': i.route, 'Amount': i.amount, 'Date': i.date, 'Status': i.status })), 'TMS_Billing');
 }

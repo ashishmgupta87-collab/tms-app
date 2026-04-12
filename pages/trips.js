@@ -1,10 +1,41 @@
 async function renderTrips(search = '') {
   const el = document.getElementById('pg-trips');
-  el.innerHTML = `<div class="pg-header"><div class="pg-title">Trips &amp; Routes</div><div class="topbar-row"><input class="search-bar" placeholder="Search..." oninput="renderTrips(this.value)" value="${search}"><button class="btn btn-amber" onclick="exportTrips()">Export Excel</button><button class="btn btn-primary" onclick="openModal('trip')">+ New trip</button></div></div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Truck</th><th>Driver</th><th>From</th><th>To</th><th>Km</th><th>Diesel</th><th>Toll</th><th>DA</th><th>Advance</th><th>Misc</th><th>Bill amt</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="trips-body"><tr><td colspan="14" class="empty-state">Loading...</td></tr></tbody></table></div></div>`;
+  el.innerHTML = `
+    <div class="pg-header">
+      <div class="pg-title">Trips &amp; Routes</div>
+      <div class="topbar-row">
+        <input class="search-bar" placeholder="Search..." oninput="renderTrips(this.value)" value="${search}">
+        <button class="btn btn-amber" onclick="exportTrips()">Export Excel</button>
+        <button class="btn btn-primary" onclick="openModal('trip')">+ New trip</button>
+      </div>
+    </div>
+    ${DateFilter.html('trips-df', 'renderTripsTable()')}
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Truck</th><th>Driver</th><th>From</th><th>To</th><th>Km</th><th>Diesel</th><th>Toll</th><th>DA</th><th>Advance</th><th>Misc</th><th>Bill amt</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="trips-body"><tr><td colspan="14" class="empty-state">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+  await renderTripsTable(search);
+}
 
+async function renderTripsTable(search = '') {
   const [trips, drivers] = await Promise.all([DB.getAll('trips'), DB.getAll('drivers')]);
   const dmap = Object.fromEntries(drivers.map(d => [d.id, d.name]));
-  const filtered = trips.filter(t => !search || (t.truck_no + (t.from_location || '') + (t.to_location || '')).toLowerCase().includes(search.toLowerCase()));
+
+  let filtered = DateFilter.apply(trips, 'date', 'trips-df');
+  if (search) filtered = filtered.filter(t =>
+    (t.truck_no + (t.from_location || '') + (t.to_location || '')).toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Summary stats
+  const totalBill = filtered.reduce((s, t) => s + Number(t.bill_amt || 0), 0);
+  const totalExp = filtered.reduce((s, t) => s + Number(t.diesel || 0) + Number(t.toll || 0) + Number(t.da || 0) + Number(t.misc || 0), 0);
+  DateFilter.updateSummary('trips-df', null, '');
+  const summaryEl = document.getElementById('trips-df-summary');
+  if (summaryEl) summaryEl.innerHTML = `<span style="color:var(--text-secondary)">${filtered.length} trips &nbsp;·&nbsp; Billed: <strong>${rupee(totalBill)}</strong> &nbsp;·&nbsp; Expenses: <strong>${rupee(totalExp)}</strong></span>`;
 
   document.getElementById('trips-body').innerHTML = filtered.length
     ? filtered.map(t => `<tr>
@@ -22,7 +53,7 @@ async function renderTrips(search = '') {
           <button class="btn btn-sm btn-danger" onclick="delRecord('trips','${t.id}',renderTrips)">Del</button>
         </td>
       </tr>`).join('')
-    : emptyState('No trips logged yet.');
+    : emptyState('No trips found for selected period.');
 }
 
 async function tripForm(d = {}) {
@@ -54,6 +85,7 @@ async function saveTrip(id) {
 }
 
 async function exportTrips() {
-  const data = await DB.getAll('trips');
-  exportExcel(data.map(t => ({ 'Truck': t.truck_no, 'From': t.from_location, 'To': t.to_location, 'Date': t.date, 'Distance': t.distance, 'Diesel': t.diesel, 'Toll': t.toll, 'DA': t.da, 'Advance': t.advance, 'Misc': t.misc, 'Bill Amt': t.bill_amt, 'Status': t.status })), 'TMS_Trips');
+  const trips = await DB.getAll('trips');
+  const filtered = DateFilter.apply(trips, 'date', 'trips-df');
+  exportExcel(filtered.map(t => ({ 'Truck': t.truck_no, 'From': t.from_location, 'To': t.to_location, 'Date': t.date, 'Distance': t.distance, 'Diesel': t.diesel, 'Toll': t.toll, 'DA': t.da, 'Advance': t.advance, 'Misc': t.misc, 'Bill Amt': t.bill_amt, 'Status': t.status })), 'TMS_Trips');
 }
