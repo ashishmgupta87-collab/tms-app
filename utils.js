@@ -24,14 +24,18 @@ function emptyState(msg) {
 
 let currentModal = '', editId = null;
 
-function openModal(type, data = null) {
+async function openModal(type, data = null) {
   currentModal = type;
   editId = data ? (data.id || null) : null;
   const titles = { fleet: 'Truck', driver: 'Driver', trip: 'Trip', maintenance: 'Maintenance Log', billing: 'Invoice', salary: 'Salary Record', company: 'Company Details' };
   document.getElementById('modal-title').textContent = (editId ? 'Edit ' : 'Add ') + (titles[type] || type);
   const forms = { fleet: fleetForm, driver: driverForm, trip: tripForm, maintenance: maintForm, billing: billingForm, salary: salaryForm, company: companyForm };
-  document.getElementById('modal-body').innerHTML = forms[type] ? forms[type](data || {}) : '';
+  document.getElementById('modal-body').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px">Loading...</div>';
   document.getElementById('modal-overlay').classList.add('open');
+  if (forms[type]) {
+    const html = await Promise.resolve(forms[type](data || {}));
+    if (html) document.getElementById('modal-body').innerHTML = html;
+  }
 }
 
 function closeModal() {
