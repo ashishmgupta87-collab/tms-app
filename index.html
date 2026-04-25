@@ -18,23 +18,6 @@
         <span>Search...</span>
         <kbd>Ctrl K</kbd>
       </div>
-      <div id="gs-overlay" onclick="GlobalSearch.close()"></div>
-      <div id="gs-panel">
-        <div id="gs-input-row">
-          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0;opacity:0.4"><circle cx="6" cy="6" r="4"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
-          <input id="gs-input" placeholder="Search trucks, drivers, trips, invoices..." oninput="GlobalSearch.search(this.value)" autocomplete="off">
-          <kbd onclick="GlobalSearch.close()">Esc</kbd>
-        </div>
-        <div id="gs-filters">
-          <button class="gs-filter active" onclick="GlobalSearch.setFilter('all',this)">All</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('fleet',this)">Trucks</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('drivers',this)">Drivers</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('trips',this)">Trips</button>
-          <button class="gs-filter" onclick="GlobalSearch.setFilter('billing',this)">Invoices</button>
-        </div>
-        <div id="gs-results"></div>
-        <div id="gs-footer">Type to search across all modules</div>
-      </div>
       <div class="sb-sec">Overview</div>
       <div class="sb-item active" onclick="nav('dashboard')">Dashboard</div>
       <div class="sb-sec">Fleet</div>
@@ -115,5 +98,24 @@
   <script src="pages/team.js"></script>
   <script src="search.js"></script>
   <script src="app.js"></script>
+
+  <!-- Global search overlay and panel — outside sidebar -->
+  <div id="gs-overlay" onclick="GlobalSearch.close()"></div>
+  <div id="gs-panel">
+    <div id="gs-input-row">
+      <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0;opacity:0.4"><circle cx="6" cy="6" r="4"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
+      <input id="gs-input" placeholder="Search trucks, drivers, trips, invoices..." oninput="GlobalSearch.search(this.value)" autocomplete="off">
+      <kbd onclick="GlobalSearch.close()">Esc</kbd>
+    </div>
+    <div id="gs-filters">
+      <button class="gs-filter active" onclick="GlobalSearch.setFilter('all',this)">All</button>
+      <button class="gs-filter" onclick="GlobalSearch.setFilter('fleet',this)">Trucks</button>
+      <button class="gs-filter" onclick="GlobalSearch.setFilter('drivers',this)">Drivers</button>
+      <button class="gs-filter" onclick="GlobalSearch.setFilter('trips',this)">Trips</button>
+      <button class="gs-filter" onclick="GlobalSearch.setFilter('billing',this)">Invoices</button>
+    </div>
+    <div id="gs-results"></div>
+    <div id="gs-footer">Type to search across all modules</div>
+  </div>
 </body>
 </html>
