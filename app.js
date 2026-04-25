@@ -41,7 +41,8 @@ async function init() {
   if (!user) return;
   const emailEl = document.getElementById('user-email');
   if (emailEl) emailEl.textContent = user.email;
-  GlobalSearch.init();
+  // Apply company branding on load
+  await updateSidebarBranding();
   await updateSyncStatus();
   setInterval(updateSyncStatus, 30000);
   renderDashboard();
