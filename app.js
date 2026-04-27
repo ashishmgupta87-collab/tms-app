@@ -8,16 +8,31 @@ const pageRenderers = {
   salary: renderSalary,
   pl: renderPL,
   import: renderImport,
-  company: renderCompany
+  company: renderCompany,
+  team: renderTeam
 };
 
 const pageLabels = {
   dashboard: 'Dashboard', fleet: 'Fleet & Trucks', drivers: 'Drivers',
   trips: 'Trips & Routes', maintenance: 'Maintenance', billing: 'Billing & Accounts',
-  salary: 'Driver Salary', pl: 'P&L Report', import: 'Import from Excel', company: 'Company Details'
+  salary: 'Driver Salary', pl: 'P&L Report', import: 'Import from Excel',
+  company: 'Company Details', team: 'Team & Roles'
 };
 
 function nav(page) {
+  // Role-based access guard
+  const role = window._userRole || 'owner'; // default owner until roles loaded
+  const driverOnly = ['dashboard', 'trips', 'salary'];
+  const ownerOnly = ['team', 'company', 'import'];
+  const accountantBlocked = ['team', 'company', 'import'];
+
+  if (role === 'driver' && !driverOnly.includes(page)) {
+    showToast('Access restricted for your role', 'error'); return;
+  }
+  if (role === 'accountant' && accountantBlocked.includes(page)) {
+    showToast('Access restricted for your role', 'error'); return;
+  }
+
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
   const pg = document.getElementById('pg-' + page);
@@ -39,10 +54,17 @@ async function updateSyncStatus() {
 async function init() {
   const user = await Auth.requireAuth();
   if (!user) return;
+
+  // Set user email in sidebar
   const emailEl = document.getElementById('user-email');
   if (emailEl) emailEl.textContent = user.email;
-  // Apply company branding on load
+
+  // Load role FIRST before anything else
+  await Roles.applyUI();
+
+  // Apply company branding
   await updateSidebarBranding();
+
   await updateSyncStatus();
   setInterval(updateSyncStatus, 30000);
   renderDashboard();
