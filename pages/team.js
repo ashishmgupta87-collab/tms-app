@@ -1,6 +1,12 @@
 async function renderTeam() {
-  const role = window._userRole || 'driver';
   const el = document.getElementById('pg-team');
+  if (!el) return;
+
+  el.innerHTML = '<div class="pg-header"><div class="pg-title">Team &amp; Roles</div></div><div class="card"><div class="empty-state">Loading...</div></div>';
+
+  // Fetch role directly — don't rely on window._userRole timing
+  const role = await Roles.get();
+  window._userRole = role; // ensure it's set
 
   if (role !== 'owner') {
     el.innerHTML = `<div class="pg-header"><div class="pg-title">Team &amp; Roles</div></div><div class="card"><div class="empty-state">Only owners can manage team roles.</div></div>`;
